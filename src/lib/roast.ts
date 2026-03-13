@@ -1,5 +1,4 @@
 import OpenAI from 'openai'
-import { captureFullPage } from './screenshot'
 
 export interface RoastPoint {
   id: number
@@ -59,17 +58,23 @@ Return ONLY a valid JSON object with this exact structure:
 Provide exactly 10 roast_points. Cover all 10 categories. Be specific to what you see, not generic advice.
 Score harshly: average stores get 40-60. Great stores get 70-85. Only legendary stores get 85+.`
 
+/**
+ * Generate a full-page screenshot URL via thum.io (free, no auth, synchronous).
+ * OpenAI fetches this URL directly — no base64 conversion needed.
+ */
+function getScreenshotUrl(url: string): string {
+  // thum.io: width 1280px, full-page capture, no animation
+  return `https://image.thum.io/get/width/1280/fullpage/noanimate/${url}`
+}
+
 export async function runAnalysis(url: string): Promise<FullAnalysis> {
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) throw new Error('OPENAI_API_KEY is not configured')
 
   const openai = new OpenAI({ apiKey })
 
-  // Capture full-page screenshot (base64 for OpenAI)
-  const { dataUrl: imageDataUrl } = await captureFullPage(url)
-
-  // Display URL — microlink embed link works directly as <img src>
-  const screenshotUrl = `https://api.microlink.io/?url=${encodeURIComponent(url)}&screenshot=true&meta=false&embed=screenshot.url&fullPage=true`
+  // Get screenshot URL — OpenAI fetches it directly (no local download)
+  const screenshotUrl = getScreenshotUrl(url)
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o',
@@ -80,7 +85,7 @@ export async function runAnalysis(url: string): Promise<FullAnalysis> {
           { type: 'text', text: ROAST_PROMPT(url) },
           {
             type: 'image_url',
-            image_url: { url: imageDataUrl, detail: 'high' },
+            image_url: { url: screenshotUrl, detail: 'high' },
           },
         ],
       },
@@ -94,13 +99,9 @@ export async function runAnalysis(url: string): Promise<FullAnalysis> {
 
   const analysis = JSON.parse(content)
 
-  // Ensure roast_points is an array and limit to 10
-  if (!Array.isArray(analysis.roast_points)) {
-    analysis.roast_points = []
-  }
-  if (!Array.isArray(analysis.quick_wins)) {
-    analysis.quick_wins = []
-  }
+  // Ensure arrays exist
+  if (!Array.isArray(analysis.roast_points)) analysis.roast_points = []
+  if (!Array.isArray(analysis.quick_wins)) analysis.quick_wins = []
 
   return {
     score: typeof analysis.score === 'number' ? analysis.score : 50,

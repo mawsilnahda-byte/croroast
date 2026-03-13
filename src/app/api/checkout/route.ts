@@ -45,6 +45,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ url: session.url })
   } catch (error) {
     console.error('Checkout error:', error)
-    return NextResponse.json({ error: 'Failed to create checkout session. Please try again.' }, { status: 500 })
+    // DEBUG: expose raw error for diagnosis (will be reverted)
+    const debugMsg = error instanceof Error ? error.message : String(error)
+    return NextResponse.json({ error: 'Failed to create checkout session. Please try again.', _debug: debugMsg }, { status: 500 })
   }
 }

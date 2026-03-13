@@ -3,7 +3,7 @@
  * Returns a base64 data URL of the screenshot.
  */
 export async function captureFullPage(url: string): Promise<{ dataUrl: string; screenshotUrl: string }> {
-  const apiUrl = `https://api.microlink.io/?url=${encodeURIComponent(url)}&screenshot=true&meta=false&embed=screenshot.url&fullPage=true`
+  const apiUrl = `https://api.microlink.io/?url=${encodeURIComponent(url)}&screenshot=true&meta=false&fullPage=true`
 
   let screenshotImgUrl: string | null = null
 

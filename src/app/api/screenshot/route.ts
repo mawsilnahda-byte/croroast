@@ -44,23 +44,50 @@ export async function GET(req: NextRequest) {
 
     const page = await browser.newPage()
 
-    // Set viewport for 1280px wide full-page capture
+    // Set viewport for 1280px wide capture
     await page.setViewport({ width: 1280, height: 900, deviceScaleFactor: 1 })
 
-    // Navigate with timeout
-    await page.goto(cleanUrl, {
-      waitUntil: 'networkidle2',
-      timeout: 20000,
+    // Block heavy resources to speed up load
+    await page.setRequestInterception(true)
+    page.on('request', (req) => {
+      const type = req.resourceType()
+      if (['font', 'media'].includes(type)) req.abort()
+      else req.continue()
     })
 
-    // Wait for content to settle
-    await new Promise((r) => setTimeout(r, 1500))
+    // Navigate
+    await page.goto(cleanUrl, { waitUntil: 'domcontentloaded', timeout: 20000 })
+
+    // Wait for initial render
+    await new Promise((r) => setTimeout(r, 3000))
+
+    // Scroll to bottom slowly to trigger lazy-loaded images
+    await page.evaluate(async () => {
+      await new Promise<void>((resolve) => {
+        const distance = 400
+        const delay = 120
+        const timer = setInterval(() => {
+          window.scrollBy(0, distance)
+          if ((window.scrollY + window.innerHeight) >= document.body.scrollHeight) {
+            clearInterval(timer)
+            resolve()
+          }
+        }, delay)
+      })
+    })
+
+    // Wait for lazy content to load
+    await new Promise((r) => setTimeout(r, 2000))
+
+    // Scroll back to top
+    await page.evaluate(() => window.scrollTo(0, 0))
+    await new Promise((r) => setTimeout(r, 500))
 
     // Take full-page screenshot
     const screenshotBuffer = await page.screenshot({
       fullPage: true,
       type: 'jpeg',
-      quality: 80,
+      quality: 82,
     })
 
     const base64 = Buffer.from(screenshotBuffer).toString('base64')

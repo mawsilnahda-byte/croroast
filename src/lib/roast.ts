@@ -65,8 +65,11 @@ export async function runAnalysis(url: string): Promise<FullAnalysis> {
 
   const openai = new OpenAI({ apiKey })
 
-  // Capture full-page screenshot via microlink.io
-  const { dataUrl: imageDataUrl, screenshotUrl } = await captureFullPage(url)
+  // Capture full-page screenshot (base64 for OpenAI)
+  const { dataUrl: imageDataUrl } = await captureFullPage(url)
+
+  // Display URL — microlink embed link works directly as <img src>
+  const screenshotUrl = `https://api.microlink.io/?url=${encodeURIComponent(url)}&screenshot=true&meta=false&embed=screenshot.url&fullPage=true`
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o',

@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import Image from 'next/image'
 import RoastReport from '@/components/RoastReport'
 import ScreenshotLightbox from '@/components/ScreenshotLightbox'
 
@@ -293,15 +292,14 @@ export default function Home() {
                   <div className="w-full md:w-64 shrink-0">
                     <button
                       onClick={() => setLightboxOpen(true)}
-                      className="relative w-full aspect-video rounded-xl overflow-hidden border border-[#2a2a2a] block group cursor-zoom-in"
+                      className="relative w-full aspect-video rounded-xl overflow-hidden border border-[#2a2a2a] block group cursor-zoom-in bg-[#1a1a1a]"
                       title="Click to view full page"
                     >
-                      <Image
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
                         src={analysis.screenshot_url}
                         alt="Page screenshot"
-                        fill
-                        className="object-cover object-top transition-transform group-hover:scale-105"
-                        unoptimized
+                        className="w-full h-full object-cover object-top transition-transform group-hover:scale-105"
                       />
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center">
                         <span className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-medium bg-black/70 px-3 py-1.5 rounded-full">

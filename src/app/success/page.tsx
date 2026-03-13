@@ -1,0 +1,164 @@
+'use client'
+
+import { useEffect, useState, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
+import RoastReport from '@/components/RoastReport'
+
+interface RoastPoint {
+  id: number
+  category: string
+  emoji: string
+  issue: string
+  impact: 'high' | 'medium' | 'low'
+  fix: string
+}
+
+interface Analysis {
+  score: number
+  verdict: string
+  biggest_problem: string
+  roast_points: RoastPoint[]
+  quick_wins: string[]
+  screenshot_url: string
+  analyzed_url: string
+}
+
+function SuccessContent() {
+  const searchParams = useSearchParams()
+  const [analysis, setAnalysis] = useState<Analysis | null>(null)
+  const sessionId = searchParams.get('session_id')
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem('croroast_analysis')
+    if (stored) {
+      try {
+        setAnalysis(JSON.parse(stored))
+      } catch {
+        // ignore
+      }
+    }
+  }, [])
+
+  if (!analysis) {
+    return (
+      <main className="min-h-screen bg-[#080808] text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-6xl mb-4">🔥</div>
+          <h1 className="text-2xl font-bold mb-4">Payment Confirmed!</h1>
+          <p className="text-gray-400 mb-6">
+            Session: <code className="text-orange-400 text-xs">{sessionId}</code>
+          </p>
+          <p className="text-gray-500 text-sm">
+            Your analysis data wasn&apos;t found in this browser session.
+            Please go back and re-analyze your page.
+          </p>
+          <a
+            href="/"
+            className="mt-6 inline-block fire-gradient text-white font-bold px-8 py-3 rounded-xl hover:opacity-90 transition-opacity"
+          >
+            Re-analyze My Page
+          </a>
+        </div>
+      </main>
+    )
+  }
+
+  const getScoreColor = (score: number) => {
+    if (score >= 75) return 'text-green-400'
+    if (score >= 50) return 'text-yellow-400'
+    if (score >= 30) return 'text-orange-400'
+    return 'text-red-500'
+  }
+
+  return (
+    <main className="min-h-screen bg-[#080808] text-white">
+      <nav className="border-b border-[#1a1a1a] px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-2xl">🔥</span>
+          <span className="font-bold text-lg">CROroast</span>
+        </div>
+        <div className="flex items-center gap-2 text-green-400 text-sm">
+          <span>✅</span>
+          <span>Payment confirmed</span>
+        </div>
+      </nav>
+
+      <div className="max-w-4xl mx-auto px-6 py-12">
+        {/* Success Banner */}
+        <div className="bg-green-500/10 border border-green-500/20 rounded-2xl p-6 mb-8 text-center">
+          <div className="text-3xl mb-2">🎉</div>
+          <h1 className="text-xl font-bold text-green-400">Full Report Unlocked</h1>
+          <p className="text-gray-400 text-sm mt-1">Here&apos;s everything we found. Time to fix your store.</p>
+        </div>
+
+        {/* Score + Verdict */}
+        <div className="bg-[#111] border border-[#222] rounded-2xl p-8 mb-6">
+          <div className="flex items-baseline gap-3 mb-4">
+            <span className={`text-7xl font-black ${getScoreColor(analysis.score)}`}>{analysis.score}</span>
+            <span className="text-gray-600 text-2xl">/100</span>
+          </div>
+          <div className="bg-[#1a1a1a] rounded-xl p-4 mb-4">
+            <p className="text-sm text-gray-500 mb-1">🔥 The Roast</p>
+            <p className="text-white font-medium">{analysis.verdict}</p>
+          </div>
+          <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4">
+            <p className="text-sm text-red-400 mb-1">⚠️ #1 Conversion Killer</p>
+            <p className="text-gray-300 text-sm">{analysis.biggest_problem}</p>
+          </div>
+        </div>
+
+        {/* All 10 roast points */}
+        <div className="mb-6">
+          <h2 className="text-lg font-bold mb-5 flex items-center gap-2">
+            <span>🔍</span> All {analysis.roast_points.length} Issues
+          </h2>
+          <div className="space-y-4">
+            {analysis.roast_points.map((point) => (
+              <RoastReport key={point.id} point={point} />
+            ))}
+          </div>
+        </div>
+
+        {/* Quick Wins */}
+        {analysis.quick_wins && analysis.quick_wins.length > 0 && (
+          <div className="bg-[#111] border border-[#222] rounded-2xl p-8">
+            <h2 className="text-lg font-bold mb-5 flex items-center gap-2">
+              <span>⚡</span> Quick Wins (Do These Today)
+            </h2>
+            <div className="space-y-3">
+              {analysis.quick_wins.map((win, i) => (
+                <div key={i} className="flex items-start gap-3 bg-orange-500/5 border border-orange-500/10 rounded-xl p-4">
+                  <span className="text-orange-400 font-bold text-sm shrink-0">#{i + 1}</span>
+                  <p className="text-gray-300 text-sm leading-relaxed">{win}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* CTA */}
+        <div className="mt-10 text-center">
+          <p className="text-gray-500 text-sm mb-4">Want to audit another page?</p>
+          <a
+            href="/"
+            className="inline-block fire-gradient text-white font-bold px-8 py-3 rounded-xl hover:opacity-90 transition-opacity glow-fire"
+          >
+            🔥 Roast Another Page
+          </a>
+        </div>
+      </div>
+    </main>
+  )
+}
+
+export default function SuccessPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen bg-[#080808] flex items-center justify-center">
+        <div className="text-orange-500 animate-pulse text-4xl">🔥</div>
+      </main>
+    }>
+      <SuccessContent />
+    </Suspense>
+  )
+}

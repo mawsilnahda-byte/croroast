@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Payment system unavailable' }, { status: 500 })
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://croroast.vercel.app'
 
   const stripe = new Stripe(stripeKey, { apiVersion: '2024-06-20' })
 
@@ -45,8 +45,32 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ url: session.url })
   } catch (error) {
     console.error('Checkout error:', error)
-    // DEBUG: expose raw error for diagnosis (will be reverted)
-    const debugMsg = error instanceof Error ? error.message : String(error)
-    return NextResponse.json({ error: 'Failed to create checkout session. Please try again.', _debug: debugMsg }, { status: 500 })
+
+    // Provide specific error messages for known Stripe issues
+    if (error instanceof Error) {
+      if (error.message.includes('cannot currently make live charges')) {
+        return NextResponse.json(
+          { error: 'Payment system is being activated. Please contact support or try again later.' },
+          { status: 503 }
+        )
+      }
+      if (error.message.includes('No such price') || error.message.includes('No such product')) {
+        return NextResponse.json(
+          { error: 'Product configuration error. Please contact support.' },
+          { status: 500 }
+        )
+      }
+      if (error.message.includes('Invalid API Key')) {
+        return NextResponse.json(
+          { error: 'Payment system misconfigured. Please contact support.' },
+          { status: 500 }
+        )
+      }
+    }
+
+    return NextResponse.json(
+      { error: 'Failed to create checkout session. Please try again.' },
+      { status: 500 }
+    )
   }
 }

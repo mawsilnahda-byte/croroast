@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import RoastReport from '@/components/RoastReport'
+import ScreenshotLightbox from '@/components/ScreenshotLightbox'
 
 interface RoastPoint {
   id: number
@@ -36,6 +37,7 @@ export default function Home() {
   const [analysis, setAnalysis] = useState<PreviewAnalysis | null>(null)
   const [error, setError] = useState('')
   const [checkingOut, setCheckingOut] = useState(false)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
   const resultsRef = useRef<HTMLDivElement>(null)
   const stepTimersRef = useRef<ReturnType<typeof setTimeout>[]>([])
 
@@ -289,15 +291,24 @@ export default function Home() {
                 <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start">
                   {/* Screenshot */}
                   <div className="w-full md:w-64 shrink-0">
-                    <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-[#2a2a2a]">
+                    <button
+                      onClick={() => setLightboxOpen(true)}
+                      className="relative w-full aspect-video rounded-xl overflow-hidden border border-[#2a2a2a] block group cursor-zoom-in"
+                      title="Click to view full page"
+                    >
                       <Image
                         src={analysis.screenshot_url}
                         alt="Page screenshot"
                         fill
-                        className="object-cover object-top"
+                        className="object-cover object-top transition-transform group-hover:scale-105"
                         unoptimized
                       />
-                    </div>
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center">
+                        <span className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-medium bg-black/70 px-3 py-1.5 rounded-full">
+                          🔍 View full page
+                        </span>
+                      </div>
+                    </button>
                     <p className="text-xs text-gray-600 mt-2 truncate">{analysis.analyzed_url}</p>
                   </div>
 
@@ -398,6 +409,15 @@ export default function Home() {
       <footer className="border-t border-[#111] px-6 py-8 text-center text-sm text-gray-700">
         <span>🔥 CROroast · AI-powered CRO audits for e-commerce stores</span>
       </footer>
+
+      {/* Screenshot Lightbox */}
+      {lightboxOpen && analysis && (
+        <ScreenshotLightbox
+          src={analysis.screenshot_url}
+          analyzedUrl={analysis.analyzed_url}
+          onClose={() => setLightboxOpen(false)}
+        />
+      )}
     </main>
   )
 }

@@ -1,9 +1,58 @@
 /**
- * Full-page screenshot via microlink.io (free tier, no API key needed)
- * Returns a base64 data URL of the screenshot.
+ * Full-page screenshot capture.
+ * Primary: Puppeteer via /api/screenshot (full-page, 1280px wide)
+ * Fallback: microlink.io (free tier, no API key needed)
  */
 export async function captureFullPage(url: string): Promise<{ dataUrl: string; screenshotUrl: string }> {
-  const apiUrl = `https://api.microlink.io/?url=${encodeURIComponent(url)}&screenshot=true&meta=false&fullPage=true`
+  // Try Puppeteer via internal API first
+  try {
+    const puppeteerResult = await captureViaPuppeteer(url)
+    if (puppeteerResult) return puppeteerResult
+  } catch (err) {
+    console.warn('Puppeteer screenshot failed, falling back to microlink.io:', err)
+  }
+
+  // Fallback: microlink.io
+  return captureFallback(url)
+}
+
+/**
+ * Attempt full-page screenshot via Puppeteer API endpoint.
+ */
+async function captureViaPuppeteer(url: string): Promise<{ dataUrl: string; screenshotUrl: string } | null> {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  const apiUrl = `${appUrl}/api/screenshot?url=${encodeURIComponent(url)}`
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 25000)
+
+  try {
+    const res = await fetch(apiUrl, { signal: controller.signal })
+    clearTimeout(timeout)
+
+    if (!res.ok) return null
+
+    const json = await res.json()
+
+    if (json.imageBase64) {
+      return {
+        dataUrl: json.imageBase64,
+        screenshotUrl: url, // we store the original page URL since base64 has no hosted URL
+      }
+    }
+
+    return null
+  } catch {
+    clearTimeout(timeout)
+    return null
+  }
+}
+
+/**
+ * Fallback: microlink.io free API (full page support).
+ */
+async function captureFallback(url: string): Promise<{ dataUrl: string; screenshotUrl: string }> {
+  const apiUrl = `https://api.microlink.io/?url=${encodeURIComponent(url)}&screenshot=true&meta=false&embed=screenshot.url&fullPage=true`
 
   let screenshotImgUrl: string | null = null
 
@@ -14,7 +63,7 @@ export async function captureFullPage(url: string): Promise<{ dataUrl: string; s
 
       const res = await fetch(apiUrl, {
         signal: controller.signal,
-        headers: { 'Accept': 'application/json' },
+        headers: { Accept: 'application/json' },
       })
       clearTimeout(timeout)
 

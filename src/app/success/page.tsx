@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import RoastReport from '@/components/RoastReport'
+import ScreenshotLightbox from '@/components/ScreenshotLightbox'
 
 interface RoastPoint {
   id: number
@@ -30,6 +31,7 @@ function SuccessContent() {
   const [analysis, setAnalysis] = useState<FullAnalysis | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [lightboxOpen, setLightboxOpen] = useState(false)
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
@@ -173,17 +175,40 @@ function SuccessContent() {
 
         {/* Score + Verdict */}
         <div className="bg-[#111] border border-[#222] rounded-2xl p-8 mb-6">
-          <div className="flex items-baseline gap-3 mb-4">
-            <span className={`text-7xl font-black ${getScoreColor(analysis.score)}`}>{analysis.score}</span>
-            <span className="text-gray-600 text-2xl">/100</span>
-          </div>
-          <div className="bg-[#1a1a1a] rounded-xl p-4 mb-4">
-            <p className="text-sm text-gray-500 mb-1">🔥 The Roast</p>
-            <p className="text-white font-medium">{analysis.verdict}</p>
-          </div>
-          <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4">
-            <p className="text-sm text-red-400 mb-1">⚠️ #1 Conversion Killer</p>
-            <p className="text-gray-300 text-sm">{analysis.biggest_problem}</p>
+          <div className="flex flex-col md:flex-row gap-6 items-start mb-4">
+            {/* Screenshot thumbnail */}
+            {analysis.screenshot_url && (
+              <button
+                onClick={() => setLightboxOpen(true)}
+                className="w-full md:w-52 shrink-0 aspect-video rounded-xl overflow-hidden border border-[#2a2a2a] group cursor-zoom-in relative block"
+                title="Click to view full page"
+              >
+                <img
+                  src={analysis.screenshot_url}
+                  alt="Page screenshot"
+                  className="w-full h-full object-cover object-top transition-transform group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center">
+                  <span className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-medium bg-black/70 px-3 py-1.5 rounded-full">
+                    🔍 View full page
+                  </span>
+                </div>
+              </button>
+            )}
+            <div className="flex-1">
+              <div className="flex items-baseline gap-3 mb-4">
+                <span className={`text-7xl font-black ${getScoreColor(analysis.score)}`}>{analysis.score}</span>
+                <span className="text-gray-600 text-2xl">/100</span>
+              </div>
+              <div className="bg-[#1a1a1a] rounded-xl p-4 mb-4">
+                <p className="text-sm text-gray-500 mb-1">🔥 The Roast</p>
+                <p className="text-white font-medium">{analysis.verdict}</p>
+              </div>
+              <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4">
+                <p className="text-sm text-red-400 mb-1">⚠️ #1 Conversion Killer</p>
+                <p className="text-gray-300 text-sm">{analysis.biggest_problem}</p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -241,6 +266,15 @@ function SuccessContent() {
           </a>
         </div>
       </div>
+
+      {/* Screenshot Lightbox */}
+      {lightboxOpen && analysis?.screenshot_url && (
+        <ScreenshotLightbox
+          src={analysis.screenshot_url}
+          analyzedUrl={analysis.analyzed_url}
+          onClose={() => setLightboxOpen(false)}
+        />
+      )}
     </main>
   )
 }

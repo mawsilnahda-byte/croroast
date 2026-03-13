@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import RoastReport from '@/components/RoastReport'
 
@@ -23,13 +23,35 @@ interface PreviewAnalysis {
   analyzed_url: string
 }
 
+const LOADING_STEPS = [
+  { emoji: '📸', label: 'Capturing full-page screenshot...' },
+  { emoji: '🧠', label: 'Analyzing with GPT-4o...' },
+  { emoji: '📊', label: 'Preparing your report...' },
+]
+
 export default function Home() {
   const [url, setUrl] = useState('')
   const [loading, setLoading] = useState(false)
+  const [loadingStep, setLoadingStep] = useState(0)
   const [analysis, setAnalysis] = useState<PreviewAnalysis | null>(null)
   const [error, setError] = useState('')
   const [checkingOut, setCheckingOut] = useState(false)
   const resultsRef = useRef<HTMLDivElement>(null)
+  const stepTimersRef = useRef<ReturnType<typeof setTimeout>[]>([])
+
+  // Cleanup step timers on unmount
+  useEffect(() => {
+    return () => stepTimersRef.current.forEach(clearTimeout)
+  }, [])
+
+  const startLoadingSteps = () => {
+    stepTimersRef.current.forEach(clearTimeout)
+    stepTimersRef.current = []
+    setLoadingStep(0)
+    const t1 = setTimeout(() => setLoadingStep(1), 8000)
+    const t2 = setTimeout(() => setLoadingStep(2), 25000)
+    stepTimersRef.current = [t1, t2]
+  }
 
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -38,6 +60,7 @@ export default function Home() {
     setLoading(true)
     setError('')
     setAnalysis(null)
+    startLoadingSteps()
 
     try {
       const res = await fetch('/api/analyze', {
@@ -47,6 +70,10 @@ export default function Home() {
       })
 
       const data = await res.json()
+
+      if (res.status === 429) {
+        throw new Error('⏱️ You\'ve analyzed 3 pages recently. Come back in a few minutes!')
+      }
 
       if (!res.ok) throw new Error(data.error || 'Analysis failed')
 
@@ -61,6 +88,7 @@ export default function Home() {
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setLoading(false)
+      stepTimersRef.current.forEach(clearTimeout)
     }
   }
 
@@ -180,17 +208,34 @@ export default function Home() {
         )}
 
         {loading && (
-          <div className="mt-8 flex flex-col items-center gap-3 text-gray-500">
-            <div className="flex gap-1.5">
-              {[0, 1, 2].map((i) => (
-                <div
-                  key={i}
-                  className="w-2 h-2 rounded-full bg-orange-500 animate-bounce"
-                  style={{ animationDelay: `${i * 0.15}s` }}
-                />
-              ))}
+          <div className="mt-8 flex flex-col items-center gap-4">
+            <div className="flex flex-col gap-2 w-full max-w-xs">
+              {LOADING_STEPS.map((step, i) => {
+                const isActive = i === loadingStep
+                const isDone = i < loadingStep
+                return (
+                  <div
+                    key={i}
+                    className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-500 ${
+                      isActive
+                        ? 'bg-orange-500/15 border border-orange-500/30 text-orange-300'
+                        : isDone
+                        ? 'bg-green-500/10 border border-green-500/20 text-green-400'
+                        : 'bg-[#111] border border-[#1e1e1e] text-gray-600'
+                    }`}
+                  >
+                    <span className="text-lg">{isDone ? '✅' : step.emoji}</span>
+                    <span className="text-sm font-medium">{step.label}</span>
+                    {isActive && (
+                      <svg className="animate-spin h-3.5 w-3.5 ml-auto shrink-0" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                    )}
+                  </div>
+                )
+              })}
             </div>
-            <p className="text-sm">Capturing screenshot and analyzing your page...</p>
           </div>
         )}
       </section>
@@ -240,16 +285,16 @@ export default function Home() {
             <div className="bg-[#111] border border-[#222] rounded-2xl overflow-hidden">
 
               {/* Score Header */}
-              <div className="p-8 border-b border-[#1e1e1e]">
-                <div className="flex flex-col md:flex-row gap-8 items-start">
+              <div className="p-4 sm:p-8 border-b border-[#1e1e1e]">
+                <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start">
                   {/* Screenshot */}
                   <div className="w-full md:w-64 shrink-0">
-                    <div className="relative aspect-video rounded-xl overflow-hidden border border-[#2a2a2a]">
+                    <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-[#2a2a2a]">
                       <Image
                         src={analysis.screenshot_url}
                         alt="Page screenshot"
                         fill
-                        className="object-cover"
+                        className="object-cover object-top"
                         unoptimized
                       />
                     </div>

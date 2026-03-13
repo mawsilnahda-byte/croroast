@@ -5,14 +5,22 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'CROroast — AI Conversion Audit for Shopify & WooCommerce',
-  description: 'Get a brutal, honest AI audit of your e-commerce landing page. Find what\'s killing your conversions in 30 seconds. Fix it. Make more money.',
-  keywords: 'CRO audit, conversion rate optimization, Shopify optimization, WooCommerce optimization, landing page audit',
+  title: 'CROroast — AI CRO Audit for Shopify & WooCommerce',
+  description: 'Get a brutal, honest AI audit of your product page in 30 seconds. Find your conversion killers. Make more money.',
+  keywords: 'CRO audit, conversion rate optimization, Shopify optimization, WooCommerce optimization, landing page audit, AI audit',
+  metadataBase: new URL('https://croroast.vercel.app'),
   openGraph: {
-    title: 'CROroast — Your Store Is Losing Money. Let\'s Find Out Why.',
-    description: 'Paste your URL. Get a brutal AI CRO audit in 30 seconds.',
+    title: 'CROroast — AI CRO Audit for Shopify & WooCommerce',
+    description: 'Get a brutal, honest AI audit of your product page in 30 seconds. Find your conversion killers. Make more money.',
+    url: 'https://croroast.vercel.app',
+    siteName: 'CROroast',
     type: 'website',
-  }
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'CROroast — AI CRO Audit for Shopify & WooCommerce',
+    description: 'Get a brutal, honest AI audit of your product page in 30 seconds. Find your conversion killers. Make more money.',
+  },
 }
 
 export default function RootLayout({
@@ -22,6 +30,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <link
+          rel="icon"
+          href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>"
+        />
+      </head>
       <body className={inter.className}>{children}</body>
     </html>
   )

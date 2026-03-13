@@ -30,6 +30,7 @@ function SuccessContent() {
   const [analysis, setAnalysis] = useState<FullAnalysis | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     if (!sessionId) {
@@ -65,6 +66,42 @@ function SuccessContent() {
     if (score >= 50) return 'text-yellow-400'
     if (score >= 30) return 'text-orange-400'
     return 'text-red-500'
+  }
+
+  const handleCopyReport = async () => {
+    if (!analysis) return
+    const lines: string[] = []
+    lines.push(`🔥 CROroast Report — ${analysis.analyzed_url}`)
+    lines.push(`Score: ${analysis.score}/100`)
+    lines.push(`Verdict: ${analysis.verdict}`)
+    lines.push(`#1 Conversion Killer: ${analysis.biggest_problem}`)
+    lines.push('')
+    lines.push('--- ISSUES ---')
+    analysis.roast_points.forEach((p, i) => {
+      lines.push(`${i + 1}. [${p.impact.toUpperCase()}] ${p.emoji} ${p.category}`)
+      lines.push(`   Issue: ${p.issue}`)
+      lines.push(`   Fix: ${p.fix}`)
+    })
+    if (analysis.quick_wins && analysis.quick_wins.length > 0) {
+      lines.push('')
+      lines.push('--- QUICK WINS ---')
+      analysis.quick_wins.forEach((w, i) => lines.push(`${i + 1}. ${w}`))
+    }
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'))
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2500)
+    } catch {
+      // fallback: create a text area and copy
+      const ta = document.createElement('textarea')
+      ta.value = lines.join('\n')
+      document.body.appendChild(ta)
+      ta.select()
+      document.execCommand('copy')
+      document.body.removeChild(ta)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2500)
+    }
   }
 
   if (loading) {
@@ -178,6 +215,20 @@ function SuccessContent() {
             </div>
           </div>
         )}
+
+        {/* Copy Report Button */}
+        <div className="mt-6 flex justify-center">
+          <button
+            onClick={handleCopyReport}
+            className="flex items-center gap-2 bg-[#111] border border-[#2a2a2a] hover:border-orange-500/40 text-gray-300 hover:text-white font-medium px-6 py-3 rounded-xl transition-all text-sm"
+          >
+            {copied ? (
+              <>✅ Copied to clipboard!</>
+            ) : (
+              <>📋 Copy Report</>
+            )}
+          </button>
+        </div>
 
         {/* CTA */}
         <div className="mt-10 text-center">

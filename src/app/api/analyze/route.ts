@@ -71,7 +71,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(preview)
   } catch (error) {
     console.error('Analysis error:', error)
-    const errMsg = error instanceof Error ? error.message : String(error)
-    return NextResponse.json({ error: errMsg }, { status: 500 })
+    const message =
+      error instanceof Error && error.message.includes('OPENAI_API_KEY')
+        ? 'Service temporarily unavailable.'
+        : error instanceof Error && error.message.includes('Screenshot')
+          ? 'Could not capture the page screenshot. Make sure the URL is a public page.'
+          : 'Analysis failed. Please try again.'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

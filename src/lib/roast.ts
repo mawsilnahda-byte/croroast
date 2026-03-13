@@ -58,12 +58,40 @@ Return ONLY a valid JSON object with this exact structure:
 Provide exactly 10 roast_points. Cover all 10 categories. Be specific to what you see, not generic advice.
 Score harshly: average stores get 40-60. Great stores get 70-85. Only legendary stores get 85+.`
 
+async function fetchScreenshotAsBase64(screenshotUrl: string): Promise<string> {
+  // thum.io generates screenshots on-demand — retry up to 3x with backoff
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 12000) // 12s per attempt
+
+      const res = await fetch(screenshotUrl, { signal: controller.signal })
+      clearTimeout(timeout)
+
+      if (!res.ok) throw new Error(`Screenshot HTTP ${res.status}`)
+
+      const buffer = await res.arrayBuffer()
+      const base64 = Buffer.from(buffer).toString('base64')
+      const contentType = res.headers.get('content-type') || 'image/jpeg'
+      return `data:${contentType};base64,${base64}`
+    } catch (err) {
+      if (attempt === 3) throw new Error(`Screenshot unavailable after 3 attempts: ${err}`)
+      // Wait before retry (give thum.io time to render)
+      await new Promise((r) => setTimeout(r, attempt * 2000))
+    }
+  }
+  throw new Error('Screenshot unavailable')
+}
+
 export async function runAnalysis(url: string): Promise<FullAnalysis> {
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) throw new Error('OPENAI_API_KEY is not configured')
 
   const openai = new OpenAI({ apiKey })
-  const screenshotUrl = `https://image.thum.io/get/width/1280/crop/900/${url}`
+  const screenshotUrl = `https://image.thum.io/get/noanimate/width/1280/crop/900/${url}`
+
+  // Fetch screenshot ourselves to avoid OpenAI download timeout
+  const imageDataUrl = await fetchScreenshotAsBase64(screenshotUrl)
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o',
@@ -74,7 +102,7 @@ export async function runAnalysis(url: string): Promise<FullAnalysis> {
           { type: 'text', text: ROAST_PROMPT(url) },
           {
             type: 'image_url',
-            image_url: { url: screenshotUrl, detail: 'high' },
+            image_url: { url: imageDataUrl, detail: 'high' },
           },
         ],
       },

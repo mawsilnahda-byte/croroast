@@ -29,9 +29,15 @@ export interface PreviewAnalysis {
   analyzed_url: string
 }
 
-const ROAST_PROMPT = (url: string) => `You are a ruthlessly honest CRO (Conversion Rate Optimization) expert who "roasts" e-commerce pages.
+const ROAST_PROMPT = (url: string, htmlContent: string) =>
+  `You are a ruthlessly honest CRO (Conversion Rate Optimization) expert who "roasts" e-commerce pages.
 
-Analyze this e-commerce page (${url}) from the screenshot and provide a detailed roast focused on conversion optimization for Shopify and WooCommerce stores.
+Analyze this e-commerce page (${url}) based on its HTML content below. Focus on conversion optimization for Shopify and WooCommerce stores.
+
+HTML CONTENT:
+---
+${htmlContent}
+---
 
 Return ONLY a valid JSON object with this exact structure:
 {
@@ -59,11 +65,43 @@ Provide exactly 10 roast_points. Cover all 10 categories. Be specific to what yo
 Score harshly: average stores get 40-60. Great stores get 70-85. Only legendary stores get 85+.`
 
 /**
- * Generate a full-page screenshot URL via thum.io (free, no auth, synchronous).
- * OpenAI fetches this URL directly — no base64 conversion needed.
+ * Fetches and extracts meaningful text content from a URL.
+ * Strips scripts, styles, and boilerplate to keep only relevant HTML.
+ */
+async function fetchPageContent(url: string): Promise<string> {
+  const res = await fetch(url, {
+    headers: {
+      'User-Agent':
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      Accept: 'text/html,application/xhtml+xml',
+      'Accept-Language': 'en-US,en;q=0.9',
+    },
+    signal: AbortSignal.timeout(7000),
+  })
+
+  if (!res.ok) throw new Error(`Failed to fetch page: HTTP ${res.status}`)
+
+  const html = await res.text()
+
+  // Strip scripts, styles, SVGs, comments
+  const stripped = html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<svg[\s\S]*?<\/svg>/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+
+  // Limit to ~8000 chars to stay within GPT token budget
+  return stripped.slice(0, 8000)
+}
+
+/**
+ * Returns a screenshot URL for display purposes only (loaded async by browser).
+ * Not used for OpenAI analysis — thum.io can be slow on first render.
  */
 function getScreenshotUrl(url: string): string {
-  // thum.io: width 1280px, full-page capture, no animation
   return `https://image.thum.io/get/width/1280/fullpage/noanimate/${url}`
 }
 
@@ -73,7 +111,10 @@ export async function runAnalysis(url: string): Promise<FullAnalysis> {
 
   const openai = new OpenAI({ apiKey })
 
-  // Get screenshot URL — OpenAI fetches it directly (no local download)
+  // Fetch page content for analysis (fast, <7s)
+  const htmlContent = await fetchPageContent(url)
+
+  // Screenshot URL for display only — browser loads this async after analysis
   const screenshotUrl = getScreenshotUrl(url)
 
   const response = await openai.chat.completions.create({
@@ -81,13 +122,7 @@ export async function runAnalysis(url: string): Promise<FullAnalysis> {
     messages: [
       {
         role: 'user',
-        content: [
-          { type: 'text', text: ROAST_PROMPT(url) },
-          {
-            type: 'image_url',
-            image_url: { url: screenshotUrl, detail: 'high' },
-          },
-        ],
+        content: ROAST_PROMPT(url, htmlContent),
       },
     ],
     response_format: { type: 'json_object' },
@@ -99,7 +134,6 @@ export async function runAnalysis(url: string): Promise<FullAnalysis> {
 
   const analysis = JSON.parse(content)
 
-  // Ensure arrays exist
   if (!Array.isArray(analysis.roast_points)) analysis.roast_points = []
   if (!Array.isArray(analysis.quick_wins)) analysis.quick_wins = []
 

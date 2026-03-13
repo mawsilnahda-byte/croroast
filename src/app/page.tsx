@@ -13,12 +13,12 @@ interface RoastPoint {
   fix: string
 }
 
-interface Analysis {
+interface PreviewAnalysis {
   score: number
   verdict: string
   biggest_problem: string
   roast_points: RoastPoint[]
-  quick_wins: string[]
+  total_issues: number
   screenshot_url: string
   analyzed_url: string
 }
@@ -26,7 +26,7 @@ interface Analysis {
 export default function Home() {
   const [url, setUrl] = useState('')
   const [loading, setLoading] = useState(false)
-  const [analysis, setAnalysis] = useState<Analysis | null>(null)
+  const [analysis, setAnalysis] = useState<PreviewAnalysis | null>(null)
   const [error, setError] = useState('')
   const [checkingOut, setCheckingOut] = useState(false)
   const resultsRef = useRef<HTMLDivElement>(null)
@@ -51,8 +51,8 @@ export default function Home() {
       if (!res.ok) throw new Error(data.error || 'Analysis failed')
 
       setAnalysis(data)
-      // Store in sessionStorage for success page
-      sessionStorage.setItem('croroast_analysis', JSON.stringify(data))
+      // Store only the analyzed URL for the success page (NOT the full analysis)
+      sessionStorage.setItem('croroast_url', data.analyzed_url)
 
       setTimeout(() => {
         resultsRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -67,6 +67,7 @@ export default function Home() {
   const handleUnlock = async () => {
     if (!analysis) return
     setCheckingOut(true)
+    setError('')
 
     try {
       const res = await fetch('/api/checkout', {
@@ -76,12 +77,14 @@ export default function Home() {
       })
 
       const data = await res.json()
-      if (data.url) {
-        window.location.href = data.url
+
+      if (!res.ok || !data.url) {
+        throw new Error(data.error || 'Failed to start checkout. Please try again.')
       }
-    } catch {
-      setError('Payment failed. Please try again.')
-    } finally {
+
+      window.location.href = data.url
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Payment failed. Please try again.')
       setCheckingOut(false)
     }
   }
@@ -119,7 +122,7 @@ export default function Home() {
       <section className="max-w-3xl mx-auto px-6 pt-20 pb-16 text-center">
         <div className="inline-flex items-center gap-2 bg-orange-500/10 border border-orange-500/20 rounded-full px-4 py-1.5 text-sm text-orange-400 mb-8">
           <span>🔥</span>
-          <span>Built for Shopify & WooCommerce stores</span>
+          <span>Built for Shopify &amp; WooCommerce stores</span>
         </div>
 
         <h1 className="text-5xl md:text-6xl font-black tracking-tight mb-6 leading-tight">
@@ -280,21 +283,21 @@ export default function Home() {
               {/* Preview Points (3 free) */}
               <div className="p-8">
                 <h2 className="text-lg font-bold mb-5 flex items-center gap-2">
-                  <span>🔍</span> CRO Issues Found ({analysis.roast_points.length})
+                  <span>🔍</span> CRO Issues Found ({analysis.total_issues})
                 </h2>
 
                 <div className="space-y-4">
-                  {/* Free: first 3 */}
-                  {analysis.roast_points.slice(0, 3).map((point) => (
+                  {analysis.roast_points.map((point) => (
                     <RoastReport key={point.id} point={point} />
                   ))}
                 </div>
 
-                {/* Locked: remaining 7 */}
-                <div className="relative mt-4">
+                {/* Unlock CTA */}
+                <div className="relative mt-6">
+                  {/* Blurred fake cards for visual effect */}
                   <div className="space-y-4 blur-overlay select-none pointer-events-none">
-                    {analysis.roast_points.slice(3).map((point) => (
-                      <RoastReport key={point.id} point={point} />
+                    {Array.from({ length: analysis.total_issues - 3 }).map((_, i) => (
+                      <div key={i} className="bg-[#161616] border border-[#222] rounded-xl p-5 h-28" />
                     ))}
                   </div>
 
@@ -303,10 +306,10 @@ export default function Home() {
                     <div className="text-center bg-[#0d0d0d]/95 border border-[#2a2a2a] rounded-2xl p-8 max-w-sm mx-4 backdrop-blur-sm">
                       <div className="text-4xl mb-3">🔒</div>
                       <h3 className="text-xl font-bold mb-2">
-                        +{analysis.roast_points.length - 3} More Issues Found
+                        +{analysis.total_issues - 3} More Issues Found
                       </h3>
                       <p className="text-gray-400 text-sm mb-6">
-                        Unlock the full report: all {analysis.roast_points.length} roast points, 3 quick wins,
+                        Unlock the full report: all {analysis.total_issues} roast points, 3 quick wins,
                         and your complete fix list.
                       </p>
                       <button

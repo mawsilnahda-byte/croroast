@@ -13,7 +13,7 @@ interface RoastPoint {
   fix: string
 }
 
-interface Analysis {
+interface FullAnalysis {
   score: number
   verdict: string
   biggest_problem: string
@@ -25,49 +25,92 @@ interface Analysis {
 
 function SuccessContent() {
   const searchParams = useSearchParams()
-  const [analysis, setAnalysis] = useState<Analysis | null>(null)
   const sessionId = searchParams.get('session_id')
 
+  const [analysis, setAnalysis] = useState<FullAnalysis | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
   useEffect(() => {
-    const stored = sessionStorage.getItem('croroast_analysis')
-    if (stored) {
+    if (!sessionId) {
+      setError('No payment session found.')
+      setLoading(false)
+      return
+    }
+
+    const fetchReport = async () => {
       try {
-        setAnalysis(JSON.parse(stored))
-      } catch {
-        // ignore
+        const res = await fetch(`/api/unlock?session_id=${encodeURIComponent(sessionId)}`)
+        const data = await res.json()
+
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to retrieve report.')
+        }
+
+        setAnalysis(data)
+        // Clear the stored URL now that we have the full report
+        sessionStorage.removeItem('croroast_url')
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Could not load your report.')
+      } finally {
+        setLoading(false)
       }
     }
-  }, [])
 
-  if (!analysis) {
-    return (
-      <main className="min-h-screen bg-[#080808] text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-6xl mb-4">🔥</div>
-          <h1 className="text-2xl font-bold mb-4">Payment Confirmed!</h1>
-          <p className="text-gray-400 mb-6">
-            Session: <code className="text-orange-400 text-xs">{sessionId}</code>
-          </p>
-          <p className="text-gray-500 text-sm">
-            Your analysis data wasn&apos;t found in this browser session.
-            Please go back and re-analyze your page.
-          </p>
-          <a
-            href="/"
-            className="mt-6 inline-block fire-gradient text-white font-bold px-8 py-3 rounded-xl hover:opacity-90 transition-opacity"
-          >
-            Re-analyze My Page
-          </a>
-        </div>
-      </main>
-    )
-  }
+    fetchReport()
+  }, [sessionId])
 
   const getScoreColor = (score: number) => {
     if (score >= 75) return 'text-green-400'
     if (score >= 50) return 'text-yellow-400'
     if (score >= 30) return 'text-orange-400'
     return 'text-red-500'
+  }
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-[#080808] text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-6xl mb-6 animate-pulse">🔥</div>
+          <h1 className="text-2xl font-bold mb-3">Payment confirmed!</h1>
+          <p className="text-gray-400 text-sm mb-6">Generating your full report...</p>
+          <div className="flex gap-1.5 justify-center">
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="w-2 h-2 rounded-full bg-orange-500 animate-bounce"
+                style={{ animationDelay: `${i * 0.15}s` }}
+              />
+            ))}
+          </div>
+        </div>
+      </main>
+    )
+  }
+
+  if (error || !analysis) {
+    return (
+      <main className="min-h-screen bg-[#080808] text-white flex items-center justify-center">
+        <div className="text-center max-w-md px-6">
+          <div className="text-5xl mb-4">😬</div>
+          <h1 className="text-2xl font-bold mb-3">Something went wrong</h1>
+          <p className="text-gray-400 text-sm mb-6">
+            {error || 'We could not load your report.'}
+          </p>
+          <p className="text-gray-500 text-xs mb-6">
+            Your payment was processed. If this issue persists, contact us with your session ID:
+            <br />
+            <code className="text-orange-400 text-xs mt-1 block">{sessionId}</code>
+          </p>
+          <a
+            href="/"
+            className="inline-block fire-gradient text-white font-bold px-8 py-3 rounded-xl hover:opacity-90 transition-opacity"
+          >
+            Back to Home
+          </a>
+        </div>
+      </main>
+    )
   }
 
   return (
@@ -107,7 +150,7 @@ function SuccessContent() {
           </div>
         </div>
 
-        {/* All 10 roast points */}
+        {/* All roast points */}
         <div className="mb-6">
           <h2 className="text-lg font-bold mb-5 flex items-center gap-2">
             <span>🔍</span> All {analysis.roast_points.length} Issues

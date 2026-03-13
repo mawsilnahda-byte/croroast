@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { runAnalysis } from '@/lib/roast'
 
+export const maxDuration = 60 // Vercel: allow up to 60s for OpenAI vision call
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const sessionId = searchParams.get('session_id')

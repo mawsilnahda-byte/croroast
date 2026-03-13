@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { runAnalysis, PreviewAnalysis } from '@/lib/roast'
 
+export const maxDuration = 60 // Vercel: allow up to 60s for OpenAI vision call
+
 // Simple in-memory rate limiter (best-effort on serverless — no cross-instance guarantee)
 // Limits per IP: max 3 requests per 10 minutes
 const rateMap = new Map<string, { count: number; resetAt: number }>()
